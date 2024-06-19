@@ -1,5 +1,5 @@
 """
-Purpose: To scrape data from each individual course's webpage
+Purpose: Scrape dữ liệu từ từng trang của mỗi khóa học trên Coursera
 """
 
 import pandas as pd 
@@ -22,7 +22,9 @@ class DataHunter:
 	instructors = []
 
 	def __init__(self, df):
-
+		"""
+        Khởi tạo với một DataFrame từ file csv
+        """
 		self.df = df
 
 	def scrape_features(self, page_url):
@@ -107,12 +109,13 @@ class DataHunter:
 
 	def make_dataset(self):
 		"""
-		Make the dataset
+		Tạo bộ dataset mới từ thông tin vừa mới thu được
 		"""
 
-		# initiate crawler
+		# gọi extract_url() để bắt đầu quá trình thu thập dữ liệu
 		self.extract_url()
 
+		# Tạo DataFrame từ dữ liệu vừa thu được
 		data_dict = {
 				"Skills":self.skills,
 				"Description":self.about,
@@ -128,12 +131,18 @@ class DataHunter:
 
 def main():
 
+	# Đọc Dataframe từ file csv
 	source_path = os.path.join("data/coursera-courses-overview.csv")
 	df = pd.read_csv(source_path)
+	
+	# # Tạo một instance của DataHunter và đi qua từng trang thông qua URL trong DataFrame
 	dh = DataHunter(df)
 	df = dh.make_dataset()
+
+	# Lưu DataFrame vào một file CSV mới
 	destination_path = os.path.join("data/coursera-individual-courses.csv")
 	df.to_csv(destination_path, index=False)
 
+# Khi script này được chạy độc lập, main() sẽ được gọi.
 if __name__=="__main__":
 	main()

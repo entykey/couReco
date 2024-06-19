@@ -18,12 +18,15 @@ import altair as alt
 
 from rake_nltk import Rake
 from nltk.corpus import stopwords 
+
+### pip install scikit-learn
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
 
 FILTERED_COURSES = None
 SELECTED_COURSE = None
 
+# Phương thức mà xử lý và "làm sạch" tên dữ liệu
 @st.cache(persist=True)
 def clean_col_names(df, columns):
 	"""
@@ -38,6 +41,8 @@ def clean_col_names(df, columns):
 		new.append(c.lower().replace(' ','_'))
 	return new
 
+# Phương thức để chuẩn bị dữ liệu bằng cách làm sạch tên cột, 
+# diễn đạt and thay thế những giá trị bị thiếu
 @st.cache(persist=True)
 def prepare_data(df):
 	"""
@@ -96,6 +101,7 @@ def prepare_data(df):
 
 	return df
 
+# Phương thức tải dữ liệu và xử lý tiền chuẩn bị cho dữ liệu
 @st.cache(allow_output_mutation=True)
 def load_data():
 	source_path1 = os.path.join("data/coursera-courses-overview.csv")
@@ -109,6 +115,7 @@ def load_data():
 
 	return df
 
+# Phương thức bắt dữ liệu và chọn ra những khóa học được lựa chọn từ tiêu chí đã chọn
 @st.cache(persist=True)
 def filter(dataframe, chosen_options, feature, id):
 	selected_records = []
@@ -118,6 +125,7 @@ def filter(dataframe, chosen_options, feature, id):
 				selected_records.append(dataframe[id][i])
 	return selected_records
 
+# Phương thức loại ra từ khóa từ miêu tả khóa học
 def extract_keywords(df, feature):
     r = Rake()
     keyword_lists = []
@@ -143,42 +151,54 @@ def extract_keywords(df, feature):
         
     return keyword_lists
 
+# Đưa ra những đề xuất những khóa học tương tự hoặc khác với khóa học được chọn
 def recommendations(df, input_course, cosine_sim, find_similar=True, how_many=5):
     
-    # initialise recommended courses list
+    # Khởi tạo danh sách khóa học được đề xuất
     recommended = []
+
+	# Tìm khóa học trong dataframe khớp với khóa học được nhập vào
     selected_course = df[df['course_name']==input_course]
     
-    # index of the course fed as input
+    # index of the course fed as input (Lấy chỉ mục của khóa học nhập vào)
     idx = selected_course.index[0]
 
-    # creating a Series with the similarity scores in descending order
-    if(find_similar):
+
+	# Tạo một series mới với các chỉ số tương tự sắp xếp từ cao đến thấp
+    if(find_similar):	# Nếu muốn tìm khóa học tương tự
         score_series = pd.Series(cosine_sim[idx]).sort_values(ascending = False)
-    else:
+    else:	# Nếu muốn tìm khóa học không tương tự
         score_series = pd.Series(cosine_sim[idx]).sort_values(ascending = True)
 
+
     # getting the indexes of the top 'how_many' courses
+	# (Lấy chỉ mục của top số lượng khóa học được chỉ định)
     if(len(score_series) < how_many):
     	how_many = len(score_series)
     top_sugg = list(score_series.iloc[1:how_many+1].index)
     
     # populating the list with the titles of the best 10 matching movies
+	# (Thêm tiêu đề của các khóa học đề xuất vào danh sách recommended)
     for i in top_sugg:
         qualified = df['course_name'].iloc[i]
         recommended.append(qualified)
         
+	# Trả về danh sách khóa học được đề xuất
     return recommended
 
+# Đưa ra những đề xuất dựa trên nội dung của dữ liệu đã chọn
 def content_based_recommendations(df, input_course, courses):
 
 	# filter out the courses
 	df = df[df['course_name'].isin(courses)].reset_index()
+
 	# create description keywords
 	df['descr_keywords'] = extract_keywords(df, 'description')
+
 	# instantiating and generating the count matrix
 	count = CountVectorizer()
 	count_matrix = count.fit_transform(df['descr_keywords'])
+
 	# generating the cosine similarity matrix
 	cosine_sim = cosine_similarity(count_matrix, count_matrix)
 
@@ -194,6 +214,7 @@ def content_based_recommendations(df, input_course, courses):
 	st.write("Top 5 most dissimilar courses")
 	st.write(temp_dissim)
 
+# Tiền chuẩn bị cho đề xuất dựa trên nội dung
 def prep_for_cbr(df):
 
 	# content-based filtering
@@ -219,13 +240,16 @@ def prep_for_cbr(df):
 	skill_filtered = None
 	courses = None
 	input_course = "Nothing"
+
 	#if st.sidebar.button("Filter Courses"):
 	temp = filter(df, skills_select, 'skills', 'course_url')
 	skill_filtered = df[df['course_url'].isin(temp)].reset_index()
+
 	# update filtered courses
 	courses = skill_filtered['course_name']
 	st.write("### Filtered courses based on skill preferences")
 	st.write(skill_filtered)
+
 	# some more info
 	st.write("**Number of programmes filtered:**",skill_filtered.shape[0])
 	st.write("**Number of courses:**",
@@ -234,6 +258,7 @@ def prep_for_cbr(df):
 		skill_filtered[skill_filtered['learning_product_type']=='PROFESSIONAL CERTIFICATE'].shape[0])
 	st.write("**Number of specializations:**",
 		skill_filtered[skill_filtered['learning_product_type']=='SPECIALIZATION'].shape[0])
+	
 	# basic plots
 	chart = alt.Chart(skill_filtered).mark_bar().encode(
 		y = 'course_provided_by:N',
@@ -258,6 +283,7 @@ def prep_for_cbr(df):
 
 	# recommend based on selected course
 
+# main to render web app
 def main():
 
 	st.title("CouReco")

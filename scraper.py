@@ -18,7 +18,7 @@ import os
 
 class DataMaker:
 	"""
-	Creates the data by scraping the website
+	This class generate the data by scraping the website (Coursera)
 	"""
 
 	site_url = None
@@ -35,8 +35,7 @@ class DataMaker:
 
 	def __init__(self, site, first_page, last_page):
 		"""
-		Initialises the page limit within
-		which the data is to be scraped
+		Khởi tạo giới hạn trang điền dữ liệu cần scrape
 		"""
 
 		self.site_url = site
@@ -51,7 +50,7 @@ class DataMaker:
 			URL of the page
 		"""
 
-		# create the soup with a certain page URL
+		# Tạo BeautifulSoup để xử lý trang HTML
 		course_list_page = requests.get(page_url)
 		course_list_soup = BeautifulSoup(course_list_page.content,
 										'html.parser')
@@ -86,6 +85,8 @@ class DataMaker:
 			".ratings-text")
 		cnumratings = course_list_soup.select(
 			".ratings-count")
+
+		# Lặp qua 10 các khoá học và lấy thông tin từ đó
 		for i in range(10):
 			try:
 				self.ratings.append(float(cratings[i].text))
@@ -114,17 +115,19 @@ class DataMaker:
 
 	def crawler(self):
 		"""
-		Traverses between the first and last pages
+		Chuyển từ trang đầu tiên đến trang cuối cùng
 		-----
 		base_url:
 			Base URL
 		"""
 
+		# Lần lượt đi qua tất cả các trang từ trang đầu tiên đến trang cuối
 		for page in range(self.first_page, self.last_page+1):
 			print("\nCrawling Page " + str(page))
 			page_url = self.site_url + "?page=" + str(page) +\
 			           "&index=prod_all_products_term_optimization"
 			
+			# lấy thông tin từ trang web
 			self.scrape_features(page_url)
 
 	def make_dataset(self):
@@ -135,6 +138,7 @@ class DataMaker:
 		# initiate crawler
 		self.crawler()
 
+		# Tạo DataFrame từ dữ liệu đã thu được
 		data_dict = {
 			"Course URL":self.urls,
 			"Course Name":self.courses,
