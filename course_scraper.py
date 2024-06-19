@@ -53,6 +53,7 @@ class DataHunter:
 
 		# pick about course
 		try:
+			# lấy nội dung của một component HTML dựa trên tên class.
 			cdescr = course_soup.select(".description")
 			self.about.append(cdescr[0].text)
 		except:
@@ -76,19 +77,33 @@ class DataHunter:
 
 		# pick estimated time to complete
 		try:
+			# lấy nội dung của một component HTML dựa trên tên class.
 			props = course_soup.select("._16ni8zai")
-			done = 0 # this counter prevents duplicate values
+
+			done = 0 # biến đếm để ngăn chặn các giá trị trùng lặp
+
+			# Khởi tạo biến etoc với giá trị "Missing", sẽ cập nhật giá trị này nếu tìm thấy nội dung cần tìm trong các phần tử props
 			etoc = "Missing"
+			
+			# duyệt qua từng phần tử trong props
 			for idx in range(len(props)):
+
+				# Ktra chuỗi 'to complete' có xuất hiện trong nội dung text
+				# của phần tử thứ idx không và xem điều kiện done chưa bằng 0
 				if('to complete' in props[idx].text and done==0):
+					# Nếu điều kiện trên là đúng, cập nhật etoc bằng nội dung text của phần tử thứ idx
 					etoc = props[idx].text
 					done+=1
+
+			# Khi đã duyệt qua hết tất cả các phần tử trong props, thì thêm giá trị của etoc vào self.estimate_toc
 			self.estimate_toc.append(etoc)
 		except:
+			# Nếu không tìm thấy chuỗi "to complete" ở bất cứ đâu, etoc sẽ giữ nguyên giá trị "Missing", và "Missing" sẽ được thêm vào self.estimate_toc
 			self.estimate_toc.append("Missing")
 
 		# pick instructors
 		try:
+			# lấy nội dung của một component HTML dựa trên tên class.
 			instructors = course_soup.select(".instructor-name")
 			temp=""
 			for idx in range(len(instructors)):
@@ -135,7 +150,7 @@ def main():
 	source_path = os.path.join("data/coursera-courses-overview.csv")
 	df = pd.read_csv(source_path)
 	
-	# # Tạo một instance của DataHunter và đi qua từng trang thông qua URL trong DataFrame
+	# Tạo một instance của DataHunter và đi qua từng trang thông qua URL trong DataFrame
 	dh = DataHunter(df)
 	df = dh.make_dataset()
 
