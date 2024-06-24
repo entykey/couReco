@@ -17,7 +17,10 @@ import matplotlib.pyplot as plt
 import altair as alt
 
 from rake_nltk import Rake
-from nltk.corpus import stopwords 
+# from nltk.corpus import stopwords 
+import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
 
 ### pip install scikit-learn
 from sklearn.metrics.pairwise import cosine_similarity
@@ -209,129 +212,193 @@ def content_based_recommendations(df, input_course, courses):
 	temp_dissim = df[df['course_name'].isin(rec_courses_dissimilar)]
 
 	# top 3
-	st.write("Top 5 most similar courses")
+	st.write("Top 5 most similar courses (table format)")
 	st.write(temp_sim)
-	st.write("Top 5 most dissimilar courses")
+	st.write("Top 5 most dissimilar courses (table format)")
 	st.write(temp_dissim)
 
 # Tiền chuẩn bị cho đề xuất dựa trên nội dung
 def prep_for_cbr(df):
+    st.header("Content-based Recommendation")
+    st.sidebar.header("Filter on Preferences")
+    st.write("This section is entrusted with the responsibility of"
+             " analysing a filtered subset of courses based on the **skills**"
+             " a learner is looking to develop. This filter can be adjusted on"
+             " the sidebar.")
+    st.write("This section also finds courses similar to a selected course"
+             " based on Content-based recommendation. The learner can choose"
+             " any course that has been filtered on the basis of their skills"
+             " in the previous section.")
+    st.write("Choose course from 'Select Course' dropdown on the sidebar")
 
-	# content-based filtering
-	st.header("Content-based Recommendation")
-	st.sidebar.header("Filter on Preferences")
-	st.write("This section is entrusted with the responsibility of"
-		" analysing a filtered subset of courses based on the **skills**"
-		" a learner is looking to develop. This filter can be adjusted on"
-		" the sidebar.")
-	st.write("This section also finds courses similar to a selected course"
-		" based on Content-based recommendation. The learner can choose"
-		" any course that has been filtered on the basis of their skills"
-		" in the previous section.")
-	st.write("Choose course from 'Select Course' dropdown on the sidebar")
+    # filter by skills
+    skills_avail = []
+    for i in range(1000):
+        skills_avail = skills_avail + df['skills'][i]
+    skills_avail = list(set(skills_avail))
+    skills_select = st.sidebar.multiselect("Select Skills", skills_avail)
 
-	# filter by skills
-	skills_avail = []
-	for i in range(1000):
-		skills_avail = skills_avail + df['skills'][i]
-	skills_avail = list(set(skills_avail))
-	skills_select = st.sidebar.multiselect("Select Skills", skills_avail)
-	# use button to make the update of filtering
-	skill_filtered = None
-	courses = None
-	input_course = "Nothing"
+    temp = filter(df, skills_select, 'skills', 'course_url')
+    skill_filtered = df[df['course_url'].isin(temp)].reset_index()
 
-	#if st.sidebar.button("Filter Courses"):
-	temp = filter(df, skills_select, 'skills', 'course_url')
-	skill_filtered = df[df['course_url'].isin(temp)].reset_index()
+    st.write("### Filtered courses based on skill preferences")
 
-	# update filtered courses
-	courses = skill_filtered['course_name']
-	st.write("### Filtered courses based on skill preferences")
-	st.write(skill_filtered)
 
-	# some more info
-	st.write("**Number of programmes filtered:**",skill_filtered.shape[0])
-	st.write("**Number of courses:**",
-		skill_filtered[skill_filtered['learning_product_type']=='COURSE'].shape[0])
-	st.write("**Number of professional degrees:**",
-		skill_filtered[skill_filtered['learning_product_type']=='PROFESSIONAL CERTIFICATE'].shape[0])
-	st.write("**Number of specializations:**",
-		skill_filtered[skill_filtered['learning_product_type']=='SPECIALIZATION'].shape[0])
-	
-	# basic plots
-	chart = alt.Chart(skill_filtered).mark_bar().encode(
-		y = 'course_provided_by:N',
-		x = 'count(course_provided_by):Q'
-	).properties(
-		title = 'Organizations providing these courses'
-	)
-	st.altair_chart(chart)
 
-	# there should be more than atleast 2 courses
-	if(len(courses)<=2):
-		st.write("*There should be atleast 3 courses. Do add more.*")
 
-	input_course = st.sidebar.selectbox("Select Course", courses, key='courses')
-	# use button to initiate content-based recommendations
-	#else:
-		#st.write("```Adjust the 'Select Skills' filter on the sidebar```")
+    # Display data in Card format grid manner
+	# Display data in Card format grid manner
+    st.write("### Courses Data Table")
 
-	rec_radio = st.sidebar.radio("Recommend Similar Courses", ('no', 'yes'), index=0)
-	if (rec_radio=='yes'):
-		content_based_recommendations(df, input_course, courses)
+    st.write(
+        '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">',
+        unsafe_allow_html=True,
+    )
+    card_count = 0
+    for index, row in skill_filtered.iterrows():
+        # Shorten the description with an ellipsis if too long
+        max_desc_length = 100
+        desc = row['description'][:max_desc_length] + ("..." if len(row['description']) > max_desc_length else "")
+        
+        # Add star rating
+        rating = int(row['course_rating'])
+        stars = ''.join(['⭐' for _ in range(rating)])
 
-	# recommend based on selected course
+        st.markdown(f"<div style='background-color:#e6e6fa;padding:20px;border-radius:5px; margin:10px'>"
+                    f"<h4>{row['course_name']}</h4>"
+                    f"<p>{desc}</p>"
+                    f"<p>Rating: {stars}</p>"
+                    f"<p><strong>Provided by:</strong> {row['course_provided_by']}</p>"
+                    f"</div>", unsafe_allow_html=True)
+
+        card_count += 1
+        if card_count % 3 == 0:
+            st.write('</div>', unsafe_allow_html=True)
+            st.write('<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">', unsafe_allow_html=True)
+
+    # Check if there are any remaining cards to close the grid
+    if card_count % 3 != 0:
+        st.write('</div>', unsafe_allow_html=True)
+
+
+
+
+    # Display the data in a table format
+    st.write("### Courses Data Table")
+    st.write(skill_filtered)
+
+    st.write("**Number of programmes filtered:**", skill_filtered.shape[0])
+    st.write("**Number of courses:**",
+              skill_filtered[skill_filtered['learning_product_type'] == 'COURSE'].shape[0])
+    st.write("**Number of professional degrees:**",
+              skill_filtered[skill_filtered['learning_product_type'] == 'PROFESSIONAL CERTIFICATE'].shape[0])
+    st.write("**Number of specializations:**",
+              skill_filtered[skill_filtered['learning_product_type'] == 'SPECIALIZATION'].shape[0])
+
+    chart = alt.Chart(skill_filtered).mark_bar().encode(
+        y='course_provided_by:N',
+        x='count(course_provided_by):Q'
+    ).properties(
+        title='Organizations providing these courses'
+    )
+    st.altair_chart(chart)
+
+    if len(skill_filtered)<=2:
+        st.write("*There should be at least 3 courses. Do add more.*")
+
+    input_course = st.sidebar.selectbox("Select Course", skill_filtered['course_name'].tolist(), key='courses')
+    rec_radio = st.sidebar.radio("Recommend Similar Courses", ('no', 'yes'), index=0)
+    if rec_radio == 'yes':
+        content_based_recommendations(df, input_course, skill_filtered['course_name'].tolist())
+
 
 # main to render web app
+# def main():
+
+
+# 	st.title("CouReco")
+# 	st.write("Exploring Courses on Coursera")
+# 	st.sidebar.title("Set your Parameters")
+# 	st.sidebar.header("Preliminary Inspection")
+# 	st.header("About the Project")
+# 	st.write("CouReco is a minimalistic system built to help learners"
+# 		" navigate through the courses on Coursera, aided by a"
+# 		" data-driven strategy. A learner could visualize different"
+# 		" features provided in the dataset or interact with this app"
+# 		" to find suitable courses to take. CouReco also can help"
+# 		" identify suitable courses for a learner based on their"
+# 		" learning preferences.")
+
+# 	# load and disp data
+# 	df = load_data()
+# 	st.header("Dataset Used")
+# 	st.write("For the purpose of building CouReco, data from Coursera"
+# 		" was scraped using the requests and beautifulsoup4 libraries."
+# 		" The final dataset thus acquired consists of 1000 instances"
+# 		" and 14 features.")
+# 	st.markdown("Toggle the **Display raw data** checkbox on the sidebar"
+# 		" to show or hide the dataset.")
+# 	# toggle button to display raw data
+# 	if st.sidebar.checkbox("Display raw data", key='disp_data'):
+# 		st.write(df)
+# 	else:
+# 		pass
+# 	st.markdown("### What does each feature represent?")
+# 	st.write("**course_url:** URL to the course homepage")
+# 	st.write("**course_name:** Name of the course")
+# 	st.write("**learning_product_type:** Is it a course, a professional certificate or a specialization?")
+# 	st.write("**course_provided_by:** Partner providing the course")
+# 	st.write("**course_rating:** Overall rating of the course")
+# 	st.write("**course_rated_by:** Number of learners who rated the course")
+# 	st.write("**enrolled_student_count:** Number of learners enrolled")
+# 	st.write("**course_difficulty:** Difficulty level of the course")
+# 	st.write("**skills:** Relevant skills the course will deal with")
+# 	st.write("**description:** About the course")
+# 	st.write("**percentage_of_new_career_starts:** Number of learners who started a new career after taking this course")
+# 	st.write("**percentage_of_pay_increase_or_promotion:** Number of learners who received a pay increase or promotion after taking this course")
+# 	st.write("**estimated_time_to_complete:** Approximate time to complete")
+# 	st.write("**instructors:** Instructors of the course")
+
+# 	# initiate CBR
+# 	prep_for_cbr(df)
+
+
 def main():
+    st.sidebar.title("Set your Parameters")
+    st.sidebar.header("Preliminary Inspection")
+    
+    st.title("CouReco")
+    
+    with st.expander("About this Recommender System"):
+        st.write(
+            "CouReco is a minimalistic system built to help learners navigate through the courses on Coursera,"
+            "aided by a data-driven strategy. A learner could visualize different features provided in the dataset or "
+            "interact with this app to find suitable courses to take. CouReco also can help identify suitable "
+            "courses for a learner based on their learning preferences.")
+        st.markdown("### What does each feature represent?")
+        st.write("**course_url:** URL to the course homepage")
+        st.write("**course_name:** Name of the course")
+        st.write("**learning_product_type:** Is it a course, a professional certificate or a specialization?")
+        st.write("**course_provided_by:** Partner providing the course")
+        st.write("**course_rating:** Overall rating of the course")
+        st.write("**course_rated_by:** Number of learners who rated the course")
+        st.write("**enrolled_student_count:** Number of learners enrolled")
+        st.write("**course_difficulty:** Difficulty level of the course")
+        st.write("**skills:** Relevant skills the course will deal with")
+        st.write("**description:** About the course")
+        st.write("**percentage_of_new_career_starts:** Number of learners who started a new career after taking this course")
+        st.write("**percentage_of_pay_increase_or_promotion:** Number of learners who received a pay increase or promotion after taking this course")
+        st.write("**estimated_time_to_complete:** Approximate time to complete")
+        st.write("**instructors:** Instructors of the course")
+        
+    df = load_data()
+    with st.expander("Raw Data Used"):
+        st.write(df)
 
-	st.title("CouReco")
-	st.write("Exploring Courses on Coursera")
-	st.sidebar.title("Set your Parameters")
-	st.sidebar.header("Preliminary Inspection")
-	st.header("About the Project")
-	st.write("CouReco is a minimalistic system built to help learners"
-		" navigate through the courses on Coursera, aided by a"
-		" data-driven strategy. A learner could visualize different"
-		" features provided in the dataset or interact with this app"
-		" to find suitable courses to take. CouReco also can help"
-		" identify suitable courses for a learner based on their"
-		" learning preferences.")
+    with st.expander("Course Recommender System", expanded=True):
+        st.header("Exploring Courses on Coursera")
+        prep_for_cbr(df)
 
-	# load and disp data
-	df = load_data()
-	st.header("Dataset Used")
-	st.write("For the purpose of building CouReco, data from Coursera"
-		" was scraped using the requests and beautifulsoup4 libraries."
-		" The final dataset thus acquired consists of 1000 instances"
-		" and 14 features.")
-	st.markdown("Toggle the **Display raw data** checkbox on the sidebar"
-		" to show or hide the dataset.")
-	# toggle button to display raw data
-	if st.sidebar.checkbox("Display raw data", key='disp_data'):
-		st.write(df)
-	else:
-		pass
-	st.markdown("### What does each feature represent?")
-	st.write("**course_url:** URL to the course homepage")
-	st.write("**course_name:** Name of the course")
-	st.write("**learning_product_type:** Is it a course, a professional certificate or a specialization?")
-	st.write("**course_provided_by:** Partner providing the course")
-	st.write("**course_rating:** Overall rating of the course")
-	st.write("**course_rated_by:** Number of learners who rated the course")
-	st.write("**enrolled_student_count:** Number of learners enrolled")
-	st.write("**course_difficulty:** Difficulty level of the course")
-	st.write("**skills:** Relevant skills the course will deal with")
-	st.write("**description:** About the course")
-	st.write("**percentage_of_new_career_starts:** Number of learners who started a new career after taking this course")
-	st.write("**percentage_of_pay_increase_or_promotion:** Number of learners who received a pay increase or promotion after taking this course")
-	st.write("**estimated_time_to_complete:** Approximate time to complete")
-	st.write("**instructors:** Instructors of the course")
-
-	# initiate CBR
-	prep_for_cbr(df)
-	
 	
 if __name__=="__main__":
 	main()
